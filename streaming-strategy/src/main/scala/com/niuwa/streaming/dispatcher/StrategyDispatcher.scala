@@ -40,6 +40,7 @@ class StrategyDispatcher[T] @Inject() (settings: Settings) {
             val temp = JSON.parseObject(copyStr)
 
             val time = System.currentTimeMillis()
+
             result.addAll(strategies(0).result(temp.toMap[Any, Any]))
             logger.info( s"""${params.get("_token_")} ${strategies(0).name} ${System.currentTimeMillis() - time}""")
             for (i <- 1.to(strategies.size)) {

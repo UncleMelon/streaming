@@ -6,7 +6,7 @@ package com.niuwa.streaming.dispatcher
 
 class DefaultShortNameMapping extends ShortNameMapping {
   private val compositorNameMap: Map[String, String] = Map[String, String](
-    "spark" -> "streaming.core.strategy.SparkStreamingStrategy",
+    "spark" -> "com.niuwa.streaming.core.strategy.SparkStreamingStrategy",
     "refTable" -> "streaming.core.strategy.SparkStreamingRefStrategy",
     "refFunction" -> "streaming.core.strategy.SparkStreamingRefStrategy",
     "flink" -> "streaming.core.strategy.SparkStreamingStrategy",
@@ -14,12 +14,12 @@ class DefaultShortNameMapping extends ShortNameMapping {
     "sql.udf" -> "streaming.core.compositor.spark.udf.SQLUDFCompositor",
 
     "batch.source" -> "streaming.core.compositor.spark.source.SQLSourceCompositor",
-    "batch.sources" -> "streaming.core.compositor.spark.source.MultiSQLSourceCompositor",
+    "batch.sources" -> "com.niuwa.streaming.core.compositor.spark.source.MultiSQLSourceCompositor",
     "batch.sql" -> "streaming.core.compositor.spark.transformation.SQLCompositor",
     "batch.table" -> "streaming.core.compositor.spark.transformation.JSONTableCompositor",
     "batch.refTable" -> "streaming.core.compositor.spark.transformation.JSONRefTableCompositor",
     "batch.script" -> "streaming.core.compositor.spark.transformation.ScriptCompositor",
-    "batch.script.df" -> "streaming.core.compositor.spark.transformation.DFScriptCompositor",
+    "batch.script.df" -> "com.niuwa.streaming.core.compositor.spark.transformation.DFScriptCompositor",
     "batch.row.index" -> "streaming.core.compositor.spark.transformation.RowNumberCompositor",
     "batch.columns" -> "streaming.core.compositor.spark.transformation.SingleColumnJSONCompositor",
     "batch.output" -> "streaming.core.compositor.spark.output.SQLOutputCompositor",
@@ -30,7 +30,7 @@ class DefaultShortNameMapping extends ShortNameMapping {
     "batch.alg" -> "streaming.core.compositor.spark.transformation.AlgorithmCompositor",
 
     "batch.output.console" -> "streaming.core.compositor.spark.output.SQLPrintCompositor",
-    "batch.outputs" -> "streaming.core.compositor.spark.output.MultiSQLOutputCompositor",
+    "batch.outputs" -> "com.niuwa.streaming.core.compositor.spark.output.MultiSQLOutputCompositor",
 
     "stream.source.kafka" -> "streaming.core.compositor.spark.streaming.source.KafkaStreamingCompositor",
     "stream.sources.kafka" -> "streaming.core.compositor.spark.streaming.source.MultiKafkaStreamingCompositor",
