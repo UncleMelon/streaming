@@ -2,8 +2,8 @@ package com.niuwa.streaming.dispatcher
 
 import java.util.{Map => JMap}
 
-import com.niuwa.streaming.runtime.{SparkRuntime, StreamingRuntime}
-import org.apache.spark.SparkConf
+import com.niuwa.streaming.CommitSparkJob
+import com.niuwa.streaming.runtime.StreamingRuntime
 
 import scala.collection.JavaConversions._
 
@@ -42,7 +42,7 @@ object Dispatcher {
   }
 
   def contextParams(jobName: String) = {
-    val runtime = PlatformManager.getRuntime
+    val runtime = CommitSparkJob.getRuntime
     val tempParams: java.util.Map[Any, Any] = runtime.params
     val contextParams: java.util.HashMap[Any, Any] = new java.util.HashMap[Any, Any]()
     tempParams.foreach(f => contextParams += (f._1 -> f._2))

@@ -8,10 +8,10 @@ import scala.collection.JavaConversions._
   * Created by allwefantasy on 20/3/2017.
   */
 trait SparkPlatformHelper {
-  def getRuntimeContext(runtime: StreamingRuntime) = {
+  def getRuntimeContext(runtime: StreamingRuntime): SparkContext = {
 
     runtime match {
-      case s2: SparkRuntime => s2.sparkContext
+      case s2: SparkRuntime => s2.sparkSession.sparkContext
       case _ =>
         Class.forName(runtime.getClass.getName).
           getMethod("sparkContext").

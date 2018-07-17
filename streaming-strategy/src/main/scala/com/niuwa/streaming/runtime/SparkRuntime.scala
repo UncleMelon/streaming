@@ -5,6 +5,7 @@ import java.util.concurrent.atomic.AtomicReference
 import java.util.{Map => JMap}
 
 import com.niuwa.streaming.runtime.ParamsHelper._
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.{SparkConf, SparkContext}
 
 import scala.collection.JavaConversions._
@@ -18,13 +19,9 @@ class SparkRuntime(_params: JMap[Any, Any]) extends StreamingRuntime with SparkP
 
   def name = "SPARK"
 
-  var sparkContext: SparkContext = createRuntime
-
-  val sparkRuntimeOperator = new SparkRuntimeOperator(_params, sparkContext)
+  var sparkSession: SparkSession = createRuntime
 
   var sparkRuntimeInfo = new SparkRuntimeInfo()
-
-  def operator = sparkRuntimeOperator
 
   def createRuntime = {
     val conf = new SparkConf()
@@ -38,22 +35,13 @@ class SparkRuntime(_params: JMap[Any, Any]) extends StreamingRuntime with SparkP
 
     conf.setAppName(params.get("streaming.name").toString)
 
-    val tempContext = new SparkContext(conf)
-
-    if (params.containsKey("streaming.job.cancel") && params.get("streaming.job.cancel").toString.toBoolean) {
-//      JobCanceller.init(tempContext)
-    }
-
-    tempContext
+    SparkSession.builder().config(conf).getOrCreate()
   }
 
 
-  if (SQLContextHolder.sqlContextHolder == null) {
-    SQLContextHolder.setActive(createSQLContextHolder(params, this))
-    params.put("_sqlContextHolder_", SQLContextHolder.getOrCreate())
-  }
+  params.put("_session_", sparkSession)
 
-  registerUDF
+//  registerUDF
 
   def registerUDF = {
     Class.forName("streaming.core.compositor.spark.udf.func.Functions").getMethods.foreach { f =>
@@ -82,7 +70,7 @@ class SparkRuntime(_params: JMap[Any, Any]) extends StreamingRuntime with SparkP
   override def streamingRuntimeInfo: StreamingRuntimeInfo = sparkRuntimeInfo
 
   override def destroyRuntime(stopGraceful: Boolean, stopContext: Boolean): Boolean = {
-    sparkContext.stop()
+    sparkSession.stop()
     SparkRuntime.clearLastInstantiatedContext()
     true
   }
