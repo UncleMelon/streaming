@@ -1,24 +1,13 @@
 package com.niuwa.streaming.dispatcher
 
-import java.util.{Map => JMap}
 
-import com.niuwa.streaming.CommitSparkJob
-import com.niuwa.streaming.runtime.StreamingRuntime
-
-import scala.collection.JavaConversions._
-
-/**
- * 5/2/16 WilliamZhu(allwefantasy@gmail.com)
- */
 object Dispatcher {
-  def dispatcher(contextParams: JMap[Any, Any]): StrategyDispatcher[Any] = {
+  def dispatcher(contextParams: Map[Any, Any]): StrategyDispatcher[Any] = {
     val defaultShortNameMapping = new DefaultShortNameMapping()
-    if (contextParams != null && contextParams.containsKey("streaming.job.file.path")) {
-      val runtime = contextParams.get("_runtime_").asInstanceOf[StreamingRuntime]
 
+    if (contextParams != null && contextParams.contains("streaming.job.file.path")) {
 
-
-      val jobFilePath = contextParams.get("streaming.job.file.path").toString
+      val jobFilePath = contextParams.getOrElse("streaming.job.file.path", "").asInstanceOf[String]
 
       var jobConfigStr = "{}"
 
@@ -39,15 +28,5 @@ object Dispatcher {
       StrategyDispatcher.getOrCreate(null, defaultShortNameMapping)
     }
 
-  }
-
-  def contextParams(jobName: String) = {
-    val runtime = CommitSparkJob.getRuntime
-    val tempParams: java.util.Map[Any, Any] = runtime.params
-    val contextParams: java.util.HashMap[Any, Any] = new java.util.HashMap[Any, Any]()
-    tempParams.foreach(f => contextParams += (f._1 -> f._2))
-    contextParams.put("_client_", jobName)
-    contextParams.put("_runtime_", runtime)
-    contextParams
   }
 }

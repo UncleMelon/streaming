@@ -1,18 +1,18 @@
 package com.niuwa.streaming.dispatcher
 
-import com.niuwa.streaming.CommitSparkJob
+import com.niuwa.streaming.SparkJobLauncher
 
 object StrategyDispatcherIT11 {
+
   def main(args: Array[String]): Unit = {
 
+    var params = Map[String, String]()
 
-    val params : java.util.HashMap[String, String] = new java.util.HashMap[String, String]()
+    params += ("streaming.master" -> "local[2]")
+    params += ("streaming.name" -> "god")
+    params += ("streaming.job.file.path" -> "classpath://batch-script-df.json")
 
-    params.put("streaming.master", "local[2]")
-    params.put("streaming.name", "god")
-    params.put("streaming.job.file.path","classpath://batch-script-df.json")
-
-    CommitSparkJob.getOrCreate.run(params)
+    SparkJobLauncher.builder().config(params).getOrCreate.run()
   }
 
 }

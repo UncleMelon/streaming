@@ -6,95 +6,54 @@ import java.util.concurrent.atomic.AtomicReference
 import java.util.{UUID, List => JList, Map => JMap}
 
 import com.alibaba.fastjson.JSON
-import com.google.inject.{Inject, Singleton}
-import com.niuwa.streaming.env.Environment
-import com.niuwa.streaming.logging.Loggers
-import com.niuwa.streaming.settings.ImmutableSettings._
-import com.niuwa.streaming.settings.Settings
+import com.google.inject.Singleton
+import com.niuwa.streaming.core.strategy.SparkStreamingStrategy
+import org.apache.logging.log4j.scala.Logger
 
 import scala.collection.JavaConversions._
 
-
 @Singleton
-class StrategyDispatcher[T] @Inject() (settings: Settings) {
+class StrategyDispatcher[T] {
   self =>
   private val _strategies = new ConcurrentHashMap[String, Strategy[T]]()
-  private val logger = Loggers.getLogger(classOf[StrategyDispatcher[T]])
+  private val logger = Logger(classOf[StrategyDispatcher[T]])
 
   private var _config: JMap[String, JMap[_, _]] = new java.util.HashMap[String, JMap[_, _]]()
 
   def strategies = _strategies
 
-  def dispatch(params: JMap[Any, Any]): JList[T] = {
-    val clientType = if (params.containsKey("_client_")) params.get("_client_").asInstanceOf[String] else "app"
-    params.put("_cache_", new util.HashMap[Any, Any]())
-    params.put("_token_", if (params.containsKey("_token_")) params.get("_token_") else UUID.randomUUID().getMostSignificantBits() + "")
+  def dispatch(_params: Map[Any, Any]): JList[T] = {
+    val clientType: String = (if (_params.contains("_client_")) _params.getOrElse("_client_", "app")).asInstanceOf[String]
+
+    var params = _params
+    params += ("_cache_" ->  new util.HashMap[Any, Any]())
+    params += ("_token_" -> (if (params.contains("_token_")) params.getOrElse("_token_", UUID.randomUUID().getMostSignificantBits() + "")))
+
     findStrategies(clientType) match {
       case Some(strategies) =>
+
         val result = new util.ArrayList[T]()
 
-        if (settings.getAsBoolean("strategy.dispatcher.chain.share.enable", false)) {
-          val copyStr = JSON.toJSONString(params, false)
-
-          try {
-            val temp = JSON.parseObject(copyStr)
-
-            val time = System.currentTimeMillis()
-
-            result.addAll(strategies(0).result(temp.toMap[Any, Any]))
-            logger.info( s"""${params.get("_token_")} ${strategies(0).name} ${System.currentTimeMillis() - time}""")
-            for (i <- 1.to(strategies.size)) {
-              val temp2 = JSON.parseObject(copyStr)
-              temp2.put("_cache_", temp.get("_cache_"))
+        try {
+          result.addAll(strategies.flatMap {
+            f =>
               val time = System.currentTimeMillis()
-              result.addAll(strategies(i).result(temp2.toMap[Any, Any]))
-              logger.info( s"""${params.get("_token_")} ${strategies(i).name} ${System.currentTimeMillis() - time}""")
-            }
-          } catch {
-            case e: Exception => logger.error("调用链路异常", e)
-          }
-          result
-        } else {
-          try {
-            result.addAll(strategies.flatMap {
-              f =>
-                val time = System.currentTimeMillis()
-                val res = f.result(params)
-                logger.info( s"""${params.get("_token_")} ${f.name} ${System.currentTimeMillis() - time}""")
-                res
-            })
-          } catch {
-            case e: Exception => logger.error("调用链路异常", e)
-          }
-          result
+              val res = f.result(params)
+              logger.info( s"""${params.get("_token_")} ${f.name} ${System.currentTimeMillis() - time}""")
+              res
+          })
+        } catch {
+          case e: Exception => logger.error("调用链路异常", e)
         }
+        result
 
       case None => List()
 
     }
   }
 
-  def help = {
-
-  }
-
   def findStrategies(key: String): Option[List[Strategy[T]]] = {
-
-    if (!settings.getAsBoolean("strategy.dispatcher.topic.enable", false))
-      return Option(List(_strategies.get(key)))
-
-    val kv = _strategies.filter(f => f._2.configParams.containsKey("topic")).
-      flatMap(f => f._2.configParams.get("topic").asInstanceOf[JList[String]].map(k => (k, f._2, 1))).
-      groupBy(j => j._1).map(f => (f._1, f._2.map(k => k._2)))
-
-    kv.get(key) match {
-      case Some(i) =>
-        if (logger.isDebugEnabled) {
-          i.toList.foreach(f => logger.debug(s"获得消息链:${f.name}"))
-        }
-        Option(i.toList)
-      case None => None
-    }
+    Option(List(_strategies.get(key)))
   }
 
   def reload(configStr: String) = {
@@ -102,7 +61,6 @@ class StrategyDispatcher[T] @Inject() (settings: Settings) {
       _strategies.foreach(_._2.stop)
       loadConfig(configStr)
     }
-
   }
 
   private var shortNameMapping: ShortNameMapping = new ShortNameMapping {
@@ -117,7 +75,7 @@ class StrategyDispatcher[T] @Inject() (settings: Settings) {
     if (configStr != null) {
       _config = JSON.parseObject(configStr).asInstanceOf[JMap[String, JMap[_, _]]]
     } else {
-      _config = JSON.parseObject(new Environment(settings).resolveConfigAndLoadToString(settings.get("application.strategy.config.file", "strategy.v2.json"))).asInstanceOf[JMap[String, JMap[_, _]]]
+//      _config = JSON.parseObject(new Environment(settings).resolveConfigAndLoadToString(settings.get("application.strategy.config.file", "strategy.v2.json"))).asInstanceOf[JMap[String, JMap[_, _]]]
     }
     load
   }
@@ -134,7 +92,7 @@ class StrategyDispatcher[T] @Inject() (settings: Settings) {
 
     require(desc.containsKey("strategy"), s"""$name 必须包含 strategy 字段。该字段定义策略实现类""")
 
-    val strategy = Class.forName(shortNameMapping.forName(desc.get("strategy").asInstanceOf[String])).newInstance().asInstanceOf[Strategy[T]]
+    val strategy = Class.forName(shortNameMapping.forName(desc.get("strategy").asInstanceOf[String])).newInstance().asInstanceOf[SparkStreamingStrategy[T]]
     val configParams: JMap[Any, Any] = if (desc.containsKey("configParams")) desc.get("configParams").asInstanceOf[JMap[Any, Any]] else new java.util.HashMap()
     strategy.initialize(name, createAlgorithms(desc), createRefs(desc), createCompositors(desc), configParams)
     _strategies.put(name, strategy)
@@ -208,10 +166,10 @@ object StrategyDispatcher {
   @transient private val lastInstantiatedContext = new AtomicReference[StrategyDispatcher[Any]]()
 
 
-  def getOrCreate(configFile: String, settings: Settings,shortNameMapping: ShortNameMapping): StrategyDispatcher[Any] = {
+/*  def getOrCreate(configFile: String, settings: Settings,shortNameMapping: ShortNameMapping): StrategyDispatcher[Any] = {
     INSTANTIATION_LOCK.synchronized {
       if (lastInstantiatedContext.get() == null) {
-        val temp = new StrategyDispatcher[Any](settings)
+        val temp = new StrategyDispatcher[Any]()
         if(shortNameMapping!=null){
           temp.configShortNameMapping(shortNameMapping)
         }
@@ -225,19 +183,18 @@ object StrategyDispatcher {
   def getOrCreate(configFile: String, settings: Settings): StrategyDispatcher[Any] = {
     INSTANTIATION_LOCK.synchronized {
       if (lastInstantiatedContext.get() == null) {
-        val temp = new StrategyDispatcher[Any](settings)
+        val temp = new StrategyDispatcher[Any]()
         temp.loadConfig(configFile)
         setLastInstantiatedContext(temp)
       }
     }
     lastInstantiatedContext.get()
-  }
+  }*/
 
   def getOrCreate(configFile: String,shortNameMapping: ShortNameMapping): StrategyDispatcher[Any] = {
     INSTANTIATION_LOCK.synchronized {
       if (lastInstantiatedContext.get() == null) {
-        val settings: Settings = settingsBuilder.build()
-        val temp = new StrategyDispatcher[Any](settings)
+        val temp = new StrategyDispatcher[Any]()
         if(shortNameMapping!=null){
           temp.configShortNameMapping(shortNameMapping)
         }
@@ -251,8 +208,7 @@ object StrategyDispatcher {
   def getOrCreate(configFile: String): StrategyDispatcher[Any] = {
     INSTANTIATION_LOCK.synchronized {
       if (lastInstantiatedContext.get() == null) {
-        val settings: Settings = settingsBuilder.build()
-        val temp = new StrategyDispatcher[Any](settings)
+        val temp = new StrategyDispatcher[Any]()
         temp.loadConfig(configFile)
         setLastInstantiatedContext(temp)
       }

@@ -2,18 +2,15 @@ package com.niuwa.streaming.runtime
 
 import java.lang.reflect.Modifier
 import java.util.concurrent.atomic.AtomicReference
-import java.util.{Map => JMap}
 
 import com.niuwa.streaming.runtime.ParamsHelper._
+import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.{SparkConf, SparkContext}
-
-import scala.collection.JavaConversions._
 
 /**
   * 5/11/16 WilliamZhu(allwefantasy@gmail.com)
   */
-class SparkRuntime(_params: JMap[Any, Any]) extends StreamingRuntime with SparkPlatformHelper with PlatformManagerListener {
+class SparkRuntime(_params: Map[Any, Any]) extends StreamingRuntime with SparkPlatformHelper with PlatformManagerListener {
   self =>
 
 
@@ -23,23 +20,26 @@ class SparkRuntime(_params: JMap[Any, Any]) extends StreamingRuntime with SparkP
 
   var sparkRuntimeInfo = new SparkRuntimeInfo()
 
+  var localParams = _params
+
   def createRuntime = {
     val conf = new SparkConf()
-    params.filter(f => f._1.toString.startsWith("spark.")).foreach { f =>
+    _params.filter(f => f._1.toString.startsWith("spark.")).foreach { f =>
       conf.set(f._1.toString, f._2.toString)
     }
 
-    if (params.containsKey("streaming.master")) {
-      conf.setMaster(params.get("streaming.master").toString)
+    if (_params.contains("streaming.master")) {
+      conf.setMaster(_params.getOrElse("streaming.master", "").toString)
     }
 
-    conf.setAppName(params.get("streaming.name").toString)
+    conf.setAppName(_params.getOrElse("streaming.name", "").toString)
 
     SparkSession.builder().config(conf).getOrCreate()
   }
 
+  localParams += ("_session_" -> sparkSession)
 
-  params.put("_session_", sparkSession)
+  override def params: Map[Any, Any] = localParams
 
 //  registerUDF
 
@@ -82,8 +82,6 @@ class SparkRuntime(_params: JMap[Any, Any]) extends StreamingRuntime with SparkP
 
   }
 
-  override def params: JMap[Any, Any] = _params
-
   override def processEvent(event: Event): Unit = {}
 
   SparkRuntime.setLastInstantiatedContext(this)
@@ -115,7 +113,7 @@ object SparkRuntime {
     * This function can be used to create a singleton SQLContext object that can be shared across
     * the JVM.
     */
-  def getOrCreate(params: JMap[Any, Any]): SparkRuntime = {
+  def getOrCreate(params: Map[Any, Any]): SparkRuntime = {
     INSTANTIATION_LOCK.synchronized {
       if (lastInstantiatedContext.get() == null) {
         new SparkRuntime(params)

@@ -1,8 +1,5 @@
 package com.niuwa.streaming.dispatcher
 
-import org.apache.spark.SparkConf
-import org.apache.spark.sql.SparkSession
-
 import scala.collection.JavaConversions._
 
 object StrategyDispatcherIT {
@@ -16,7 +13,7 @@ object StrategyDispatcherIT {
       mkString("\n")
     println(jobConfigStr)
 
-    val params : java.util.HashMap[Any, Any] = new java.util.HashMap[Any, Any]()
+    val params  = Map[Any, Any]()
 
     params.put("_client_", "batch-console")
 

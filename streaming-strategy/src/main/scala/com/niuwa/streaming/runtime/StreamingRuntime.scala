@@ -1,8 +1,8 @@
 package com.niuwa.streaming.runtime
 
-import java.util.{List => JList, Map => JMap}
-
 import com.niuwa.streaming.dispatcher.Strategy
+
+import scala.collection.mutable
 
 
 trait StreamingRuntime {
@@ -23,7 +23,7 @@ trait StreamingRuntime {
 
   def startHttpServer
 
-  def params: JMap[Any, Any]
+  def params: Map[Any, Any]
 
 }
 
